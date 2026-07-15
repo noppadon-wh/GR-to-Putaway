@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KPI GR to Putaway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --bg-0:#0b0e14;
+    --bg-1:#11151d;
+    --bg-2:#161b26;
+    --card-border:rgba(255,255,255,0.06);
+    --text-primary:#eef1f6;
+    --text-secondary:#9aa4b4;
+    --text-muted:#68707e;
+    --accent-teal:#1baf7a;
+    --accent-purple:#6c63d9;
+    --accent-amber:#eda100;
+    --accent-red:#e34948;
+    --accent-blue:#3987e5;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter','Noto Sans Thai',sans-serif;
+    background:radial-gradient(1200px 600px at 10% -10%, rgba(108,99,217,0.12), transparent 60%),
+               radial-gradient(1000px 500px at 90% 0%, rgba(27,175,122,0.10), transparent 55%),
+               var(--bg-0);
+    color:var(--text-primary);
+    min-height:100vh;
+    padding:32px 24px 64px;
+  }
+  .wrap{max-width:1240px;margin:0 auto;}
+  .header{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:16px;
+    margin-bottom:20px;
+  }
+  .header h1{
+    font-size:26px;
+    font-weight:700;
+    margin:0 0 6px;
+    letter-spacing:-0.02em;
+  }
+  .header p{
+    margin:0;
+    color:var(--text-secondary);
+    font-size:14px;
+  }
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:rgba(27,175,122,0.12);
+    color:#4fd8a8;
+    border:1px solid rgba(27,175,122,0.28);
+    padding:6px 14px;
+    border-radius:999px;
+    font-size:12.5px;
+    font-weight:600;
+  }
+  .dot{width:6px;height:6px;border-radius:50%;background:#4fd8a8;}
+  .filter-panel{
+    background:linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border:1px solid var(--card-border);
+    border-radius:var(--radius);
+    padding:16px 20px;
+    margin-bottom:20px;
+  }
+  .filter-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .filter-row + .filter-row{margin-top:12px;}
+  .filter-label{
+    font-size:12.5px;
+    color:var(--text-muted);
+    font-weight:600;
+    min-width:56px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+  }
+  .chip{
+    appearance:none;
+    border:1px solid var(--card-border);
+    background:var(--bg-1);
+    color:var(--text-secondary);
+    font-family:inherit;
+    font-size:13px;
+    font-weight:500;
+    padding:6px 14px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:all .15s ease;
+    white-space:nowrap;
+  }
+  .chip:hover{border-color:var(--text-muted);color:var(--text-primary);}
+  .chip.active{
+    background:rgba(27,175,122,0.16);
+    border-color:rgba(27,175,122,0.5);
+    color:#4fd8a8;
+  }
+  .chip.active.month-active{
+    background:rgba(108,99,217,0.18);
+    border-color:rgba(108,99,217,0.55);
+    color:#b3abf2;
+  }
+  .chip.active.year-active{
+    background:rgba(237,161,0,0.18);
+    border-color:rgba(237,161,0,0.55);
+    color:#f4c05a;
+  }
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:16px;
+    margin-bottom:24px;
+  }
+  .kpi-card{
+    background:linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border:1px solid var(--card-border);
+    border-radius:var(--radius);
+    padding:20px 22px;
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi-card::before{
+    content:"";
+    position:absolute;
+    top:0;left:0;right:0;
+    height:3px;
+    background:var(--accent);
+  }
+  .kpi-card .label{
+    font-size:13px;
+    color:var(--text-secondary);
+    margin:0 0 10px;
+    font-weight:500;
+  }
+  .kpi-card .value{
+    font-size:32px;
+    font-weight:700;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .kpi-card .sub{
+    font-size:12.5px;
+    color:var(--text-muted);
+    margin:8px 0 0;
+  }
+  .kpi-card.c-total{--accent:#1baf7a;}
+  .kpi-card.c-in{--accent:#3987e5;}
+  .kpi-card.c-store{--accent:#eda100;}
+  .kpi-card.c-time{--accent:#6c63d9;}
+  .charts-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:16px;
+    margin-bottom:24px;
+  }
+  .panel{
+    background:linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border:1px solid var(--card-border);
+    border-radius:var(--radius);
+    padding:20px 22px 16px;
+  }
+  .panel h3{
+    font-size:15px;
+    font-weight:600;
+    margin:0 0 2px;
+  }
+  .panel p.desc{
+    font-size:12.5px;
+    color:var(--text-muted);
+    margin:0 0 14px;
+  }
+  .chart-box{position:relative;width:100%;height:260px;}
+  .empty-msg{
+    color:var(--text-muted);
+    font-size:13px;
+    text-align:center;
+    padding:40px 0;
+  }
+  .table-panel{
+    background:linear-gradient(180deg, var(--bg-2), var(--bg-1));
+    border:1px solid var(--card-border);
+    border-radius:var(--radius);
+    padding:20px 22px 8px;
+    margin-bottom:8px;
+  }
+  .table-panel h3{font-size:15px;font-weight:600;margin:0 0 2px;}
+  .table-panel p.desc{font-size:12.5px;color:var(--text-muted);margin:0 0 14px;}
+  .table-scroll{overflow-x:auto;}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+    min-width:1200px;
+  }
+  thead th{
+    text-align:left;
+    padding:10px 12px;
+    color:var(--text-secondary);
+    font-weight:600;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    border-bottom:1px solid var(--card-border);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:11px 12px;
+    border-bottom:1px solid rgba(255,255,255,0.04);
+    white-space:nowrap;
+    color:var(--text-primary);
+  }
+  tbody tr:hover{background:rgba(255,255,255,0.02);}
+  tbody tr.fail-row td:first-child{box-shadow:inset 3px 0 0 var(--accent-red);}
+  .mono{font-family:'Inter',monospace;font-size:12px;color:var(--text-secondary);}
+  .pill{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:999px;
+    font-size:11.5px;
+    font-weight:600;
+  }
+  .pill.pass{background:rgba(27,175,122,0.14);color:#4fd8a8;}
+  .pill.fail{background:rgba(227,73,72,0.14);color:#f18685;}
+  .type-tag{
+    display:inline-block;
+    padding:3px 10px;
+    border-radius:6px;
+    font-size:11.5px;
+    font-weight:600;
+  }
+  .type-Matcha{background:rgba(27,175,122,0.14);color:#4fd8a8;}
+  .type-Packaging{background:rgba(108,99,217,0.16);color:#a9a0f0;}
+  .type-Accessories{background:rgba(237,161,0,0.14);color:#f4c05a;}
+  .type-tag.other{background:rgba(154,164,180,0.14);color:#c3c9d4;}
+  .foot-note{
+    font-size:12px;
+    color:var(--text-muted);
+    margin-top:20px;
+    line-height:1.6;
+    border-top:1px solid var(--card-border);
+    padding-top:16px;
+  }
+  @media(max-width:900px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .charts-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <h1 id="pageTitle">KPI รับเข้า &rarr; จัดเก็บสินค้า</h1>
+      <p>แหล่งข้อมูล: Google Sheets (CSV) &middot; <span id="rowCountLabel">กำลังโหลดข้อมูล…</span></p>
+    </div>
+    <span class="badge" id="dataStatus"><span class="dot"></span>กำลังโหลดข้อมูลล่าสุด</span>
+  </div>
+  <div class="filter-panel">
+    <div class="filter-row">
+      <span class="filter-label">Year</span>
+      <div id="yearFilters"></div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Month</span>
+      <div id="monthFilters"></div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Week</span>
+      <div id="weekFilters"></div>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card c-total">
+      <p class="label">ON-TIME รวม (รับเข้า+จัดเก็บ)</p>
+      <p class="value" id="kpiTotal">-</p>
+      <p class="sub" id="kpiTotalSub">-</p>
+    </div>
+    <div class="kpi-card c-in">
+      <p class="label">ผ่านเกณฑ์รับเข้า</p>
+      <p class="value" id="kpiIn">-</p>
+      <p class="sub" id="kpiInSub">-</p>
+    </div>
+    <div class="kpi-card c-store">
+      <p class="label">ผ่านเกณฑ์จัดเก็บ</p>
+      <p class="value" id="kpiStore">-</p>
+      <p class="sub" id="kpiStoreSub">สถานะจาก Google Sheets</p>
+    </div>
+    <div class="kpi-card c-time">
+      <p class="label">เวลาเฉลี่ยรวม (วัน)</p>
+      <p class="value" id="kpiTime">-</p>
+      <p class="sub">มาส่ง &rarr; จัดเก็บสำเร็จ (เฉลี่ย)</p>
+    </div>
+  </div>
+  <div class="charts-grid">
+    <div class="panel">
+      <h3>อัตราผ่านเกณฑ์ตามประเภทสินค้า</h3>
+      <p class="desc">จำนวนรายการและอัตราผ่านเกณฑ์รวม แยกตาม Matcha / Packaging / Accessories</p>
+      <div class="chart-box">
+        <canvas id="chartType" role="img" aria-label="แผนภูมิแท่งอัตราผ่านเกณฑ์ตามประเภทสินค้า"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>ระยะเวลาจัดเก็บเฉลี่ยตามประเภทสินค้า (วัน)</h3>
+      <p class="desc">เปรียบเทียบระยะเวลาจัดเก็บเฉลี่ย (รับเข้าระบบ &rarr; จัดเก็บ) แยกตาม Matcha / Packaging / Accessories</p>
+      <div class="chart-box">
+        <canvas id="chartLeadtime" role="img" aria-label="แผนภูมิแท่งแนวนอนระยะเวลาจัดเก็บเฉลี่ยตามประเภทสินค้า"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="table-panel">
+    <h3>รายละเอียดรายการ</h3>
+    <p class="desc">แถบสีแดงด้านซ้าย = ไม่ผ่านเกณฑ์รวม &middot; สถานะผ่านเกณฑ์อ่านจากข้อมูลล่าสุดใน Google Sheets</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Week</th>
+            <th>Lot / Serial</th>
+            <th>Product</th>
+            <th>ประเภท</th>
+            <th>ปลายทาง (To)</th>
+            <th>วันที่มาส่ง</th>
+            <th>รับเข้าระบบ</th>
+            <th>จัดเก็บ</th>
+            <th>รับเข้า(วัน)</th>
+            <th>จัดเก็บ(วัน)</th>
+            <th>วันที่ QA ใช้ตรวจ (วัน)</th>
+            <th>เกณฑ์รับเข้า</th>
+            <th>เกณฑ์จัดเก็บ</th>
+            <th>เกณฑ์รวม</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <p class="foot-note">
+    หมายเหตุ: หน้าแดชบอร์ดโหลดข้อมูลจาก Google Sheets ที่เผยแพร่เป็น CSV ทุกครั้งที่เปิดหน้า เพื่อให้แสดงรายการและสถานะล่าสุดจากต้นทาง
+    ระยะเวลารับเข้าและจัดเก็บคำนวณจากวันที่ใน CSV โดยตรง &middot; แถวที่ไม่มี Lot/Serial Number หรือข้อมูลหลักไม่ครบจะไม่ถูกนำมาแสดง
+  </p>
+</div>
+<script>
+const DATA_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT1lgAWEGk3qFzUO2Iok3CZrKP7Zu3Gd9gxvUsfR-Y9p4YQm7GXh0wxKWfIEnZZWLYwYKaTIp1E1vDq/pub?gid=1625574187&single=true&output=csv";
+const monthOrder = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+let DATA_ROWS = [];
+let state = { year: "ทั้งหมด", month: "ทั้งหมด", week: "ทั้งหมด" };
+let chartTypeInst = null, chartLeadInst = null;
+function parseCsv(text){
+  const records = [];
+  let record = [], field = '', quoted = false;
+  for(let i = 0; i < text.length; i++){
+    const char = text[i];
+    if(quoted){
+      if(char === '"' && text[i + 1] === '"'){
+        field += '"';
+        i++;
+      }else if(char === '"'){
+        quoted = false;
+      }else{
+        field += char;
+      }
+    }else if(char === '"'){
+      quoted = true;
+    }else if(char === ','){
+      record.push(field);
+      field = '';
+    }else if(char === '\n'){
+      record.push(field.replace(/\r$/, ''));
+      records.push(record);
+      record = [];
+      field = '';
+    }else{
+      field += char;
+    }
+  }
+  if(field || record.length){
+    record.push(field.replace(/\r$/, ''));
+    records.push(record);
+  }
+  const headers = records.shift()?.map(header => header.trim()) || [];
+  return records.map(values => Object.fromEntries(headers.map((header, index) => [header, (values[index] || '').trim()])));
+}
+function parseSheetDate(value){
+  const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
+  if(!match) return null;
+  return new Date(Number(match[3]), Number(match[2]) - 1, Number(match[1]), Number(match[4] || 0), Number(match[5] || 0));
+}
+function formatDate(date){
+  if(!date) return '-';
+  const pad = value => String(value).padStart(2, '0');
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+}
+function differenceInDays(start, end){
+  return (end.getTime() - start.getTime()) / 86400000;
+}
+function isPassing(value){
+  return value.includes('ผ่าน') && !value.includes('ไม่ผ่าน');
+}
+function toDashboardRow(row){
+  const week = Number(row.Week);
+  const arriveDate = parseSheetDate(row['วันที่ของมาส่ง']);
+  const enteredDate = parseSheetDate(row['วันที่รับเข้าระบบ']);
+  const storedDate = parseSheetDate(row['วันที่จัดเก็บ']);
+  if(!Number.isFinite(week) || !row.Month || !row['Lot/Serial Number'] || !arriveDate || !enteredDate || !storedDate) return null;
+  return {
+    year: arriveDate.getFullYear(),
+    week,
+    month: row.Month,
+    lot: row['Lot/Serial Number'],
+    product: row.Product || '-',
+    to: row.To || '-',
+    arrive: formatDate(arriveDate),
+    entered: formatDate(enteredDate),
+    stored: formatDate(storedDate),
+    lt_in: differenceInDays(arriveDate, enteredDate),
+    lt_store: differenceInDays(enteredDate, storedDate),
+    sla: row['วันที่ QA ใช้ตรวจ'] || '-',
+    type: row.Type || 'อื่นๆ',
+    pass_in: isPassing(row['เกณฑ์รับเข้า'] || ''),
+    pass_store: isPassing(row['เกณฑ์จัดเก็บ'] || ''),
+    pass_total: isPassing(row['เกณฑ์รวม'] || '')
+  };
+}
+function selectLatestPeriod(){
+  if(!DATA_ROWS.length) return;
+  const latestYear = Math.max(...DATA_ROWS.map(row => row.year));
+  const yearRows = DATA_ROWS.filter(row => row.year === latestYear);
+  const latestWeek = Math.max(...yearRows.map(row => row.week));
+  const latestRows = yearRows.filter(row => row.week === latestWeek);
+  state.year = latestYear;
+  state.week = latestWeek;
+  state.month = monthOrder.find(month => latestRows.some(row => row.month === month)) || latestRows[0].month;
+}
+function escapeHtml(value){
+  return String(value).replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
+}
+function getYearsPresent(){
+  const set = new Set(DATA_ROWS.map(r => r.year));
+  return [...set].sort((a,b) => a-b);
+}
+function getMonthsPresent(year){
+  const set = new Set(DATA_ROWS.filter(r => year === "ทั้งหมด" || r.year === year).map(r => r.month));
+  return monthOrder.filter(m => set.has(m));
+}
+function getWeeksForMonth(year, month){
+  const set = new Set(DATA_ROWS.filter(r => (year === "ทั้งหมด" || r.year === year) && (month === "ทั้งหมด" || r.month === month)).map(r => r.week));
+  return [...set].sort((a,b) => a-b);
+}
+function renderYearFilters(){
+  const el = document.getElementById('yearFilters');
+  const years = ["ทั้งหมด", ...getYearsPresent()];
+  el.innerHTML = "";
+  years.forEach(y => {
+    const btn = document.createElement('button');
+    btn.className = 'chip year-active' + (state.year === y ? ' active' : '');
+    btn.textContent = y;
+    btn.onclick = () => {
+      state.year = y;
+      const months = getMonthsPresent(y);
+      if(state.month !== "ทั้งหมด" && !months.includes(state.month)) state.month = "ทั้งหมด";
+      const weeks = getWeeksForMonth(state.year, state.month);
+      if(state.week !== "ทั้งหมด" && !weeks.includes(state.week)) state.week = "ทั้งหมด";
+      renderYearFilters();
+      renderMonthFilters();
+      renderWeekFilters();
+      update();
+    };
+    el.appendChild(btn);
+  });
+}
+function renderMonthFilters(){
+  const el = document.getElementById('monthFilters');
+  const months = ["ทั้งหมด", ...getMonthsPresent(state.year)];
+  el.innerHTML = "";
+  months.forEach(m => {
+    const btn = document.createElement('button');
+    btn.className = 'chip month-active' + (state.month === m ? ' active' : '');
+    btn.textContent = m;
+    btn.onclick = () => {
+      state.month = m;
+      const weeks = getWeeksForMonth(state.year, m);
+      if(!weeks.includes(state.week)) state.week = "ทั้งหมด";
+      renderMonthFilters();
+      renderWeekFilters();
+      update();
+    };
+    el.appendChild(btn);
+  });
+}
+function renderWeekFilters(){
+  const el = document.getElementById('weekFilters');
+  const weeks = ["ทั้งหมด", ...getWeeksForMonth(state.year, state.month)];
+  el.innerHTML = "";
+  weeks.forEach(w => {
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (state.week === w ? ' active' : '');
+    btn.textContent = w === "ทั้งหมด" ? "ทั้งหมด" : ("W" + w);
+    btn.onclick = () => {
+      state.week = w;
+      renderWeekFilters();
+      update();
+    };
+    el.appendChild(btn);
+  });
+}
+function filteredRows(){
+  return DATA_ROWS.filter(r => {
+    if(state.year !== "ทั้งหมด" && r.year !== state.year) return false;
+    if(state.month !== "ทั้งหมด" && r.month !== state.month) return false;
+    if(state.week !== "ทั้งหมด" && r.week !== state.week) return false;
+    return true;
+  });
+}
+function pct(n, d){ return d === 0 ? 0 : Math.round((n/d)*1000)/10; }
+function update(){
+  const rows = filteredRows();
+  const n = rows.length;
+  document.getElementById('rowCountLabel').textContent = n + ' รายการ';
+  const yearLbl = state.year === "ทั้งหมด" ? "ทุกปี" : state.year;
+  const monthLbl = state.month === "ทั้งหมด" ? "ทุกเดือน" : state.month;
+  const weekLbl = state.week === "ทั้งหมด" ? "ทุกสัปดาห์" : ("Week " + state.week);
+  document.getElementById('pageTitle').textContent = 'KPI รับเข้า → จัดเก็บสินค้า · ' + weekLbl + ' (' + monthLbl + ' ' + yearLbl + ')';
+  if(n === 0){
+    document.getElementById('kpiTotal').textContent = '-';
+    document.getElementById('kpiIn').textContent = '-';
+    document.getElementById('kpiStore').textContent = '-';
+    document.getElementById('kpiTime').textContent = '-';
+    document.getElementById('kpiTotalSub').textContent = 'ไม่มีข้อมูล';
+    document.getElementById('kpiInSub').textContent = '';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="empty-msg">ไม่มีข้อมูลในช่วงที่เลือก</td></tr>';
+    if(chartTypeInst) chartTypeInst.destroy();
+    if(chartLeadInst) chartLeadInst.destroy();
+    return;
+  }
+  const passIn = rows.filter(r => r.pass_in).length;
+  const passStore = rows.filter(r => r.pass_store).length;
+  const passTotal = rows.filter(r => r.pass_total).length;
+  const avgIn = rows.reduce((s,r) => s + r.lt_in, 0) / n;
+  const avgStore = rows.reduce((s,r) => s + r.lt_store, 0) / n;
+  const avgTotal = avgIn + avgStore;
+  document.getElementById('kpiTotal').textContent = pct(passTotal, n) + '%';
+  document.getElementById('kpiTotalSub').textContent = passTotal + ' / ' + n + ' รายการผ่านเกณฑ์รวม';
+  document.getElementById('kpiIn').textContent = pct(passIn, n) + '%';
+  document.getElementById('kpiInSub').textContent = passIn + ' / ' + n + ' ผ่านเกณฑ์รับเข้า';
+  document.getElementById('kpiStore').textContent = pct(passStore, n) + '%';
+  document.getElementById('kpiStoreSub').textContent = passStore + ' / ' + n + ' ผ่านเกณฑ์จัดเก็บ';
+  document.getElementById('kpiTime').textContent = avgTotal.toFixed(2) + ' วัน';
+  const types = ["Matcha","Packaging","Accessories"];
+  const typeStats = types.map(t => {
+    const sub = rows.filter(r => r.type === t);
+    return {
+      type: t,
+      cnt: sub.length,
+      rate: sub.length ? pct(sub.filter(r => r.pass_total).length, sub.length) : null,
+      avgStore: sub.length ? sub.reduce((s,r) => s + r.lt_store, 0) / sub.length : null
+    };
+  }).filter(t => t.cnt > 0);
+  const otherSub = rows.filter(r => !types.includes(r.type));
+  if(otherSub.length){
+    typeStats.push({
+      type: 'อื่นๆ',
+      cnt: otherSub.length,
+      rate: pct(otherSub.filter(r => r.pass_total).length, otherSub.length),
+      avgStore: otherSub.reduce((s,r) => s + r.lt_store, 0) / otherSub.length
+    });
+  }
+  const muted = '#68707e';
+  const grid = 'rgba(255,255,255,0.06)';
+  const colorMap = { Matcha:'#1baf7a', Packaging:'#6c63d9', Accessories:'#eda100', 'อื่นๆ':'#9aa4b4' };
+  if(chartTypeInst) chartTypeInst.destroy();
+  chartTypeInst = new Chart(document.getElementById('chartType'), {
+    type: 'bar',
+    data: {
+      labels: typeStats.map(t => t.type + ' (' + t.cnt + ')'),
+      datasets: [{
+        data: typeStats.map(t => t.rate),
+        backgroundColor: typeStats.map(t => colorMap[t.type] || '#9aa4b4'),
+        borderRadius: 6,
+        maxBarThickness: 56
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ctx.parsed.y + '%' } } },
+      scales: {
+        y: { min: 0, max: 100, ticks: { color: muted, callback: (v) => v + '%' }, grid: { color: grid } },
+        x: { ticks: { color: muted }, grid: { display: false } }
+      }
+    }
+  });
+  if(chartLeadInst) chartLeadInst.destroy();
+  chartLeadInst = new Chart(document.getElementById('chartLeadtime'), {
+    type: 'bar',
+    data: {
+      labels: typeStats.map(t => t.type + ' (' + t.cnt + ')'),
+      datasets: [{
+        data: typeStats.map(t => Math.round(t.avgStore*100)/100),
+        backgroundColor: typeStats.map(t => colorMap[t.type] || '#9aa4b4'),
+        borderRadius: 6,
+        maxBarThickness: 40
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ctx.parsed.x + ' วัน' } } },
+      scales: {
+        x: { min: 0, ticks: { color: muted }, grid: { color: grid } },
+        y: { ticks: { color: muted }, grid: { display: false } }
+      }
+    }
+  });
+  const tbody = document.getElementById('tbody');
+  const sorted = rows.slice().sort((a,b) => (b.year - a.year) || (b.week - a.week) || a.lot.localeCompare(b.lot));
+  tbody.innerHTML = "";
+  sorted.forEach(r => {
+    const tr = document.createElement('tr');
+    if(!r.pass_total) tr.className = 'fail-row';
+    const typeClass = ['Matcha','Packaging','Accessories'].includes(r.type) ? ('type-' + r.type) : 'other';
+    tr.innerHTML = `
+      <td>W${r.week}</td>
+      <td class="mono">${escapeHtml(r.lot)}</td>
+      <td style="max-width:240px;white-space:normal;">${escapeHtml(r.product)}</td>
+      <td><span class="type-tag ${typeClass}">${escapeHtml(r.type)}</span></td>
+      <td class="mono">${escapeHtml(r.to)}</td>
+      <td>${r.arrive}</td>
+      <td>${r.entered}</td>
+      <td>${r.stored}</td>
+      <td>${r.lt_in.toFixed(2)}</td>
+      <td>${r.lt_store.toFixed(2)}</td>
+      <td>${r.sla}</td>
+      <td><span class="pill ${r.pass_in ? 'pass' : 'fail'}">${r.pass_in ? 'ผ่าน' : 'ไม่ผ่าน'}</span></td>
+      <td><span class="pill ${r.pass_store ? 'pass' : 'fail'}">${r.pass_store ? 'ผ่าน' : 'ไม่ผ่าน'}</span></td>
+      <td><span class="pill ${r.pass_total ? 'pass' : 'fail'}">${r.pass_total ? 'ผ่าน' : 'ไม่ผ่าน'}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+async function loadData(){
+  const status = document.getElementById('dataStatus');
+  try{
+    const response = await fetch(DATA_URL, { cache: 'no-store' });
+    if(!response.ok) throw new Error(`HTTP ${response.status}`);
+    const csv = await response.text();
+    DATA_ROWS = parseCsv(csv).map(toDashboardRow).filter(Boolean);
+    selectLatestPeriod();
+    renderYearFilters();
+    renderMonthFilters();
+    renderWeekFilters();
+    update();
+    status.innerHTML = '<span class="dot"></span>โหลดข้อมูลล่าสุดแล้ว';
+  }catch(error){
+    console.error('Unable to load spreadsheet data:', error);
+    document.getElementById('rowCountLabel').textContent = 'โหลดข้อมูลไม่สำเร็จ';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="empty-msg">ไม่สามารถโหลดข้อมูลจาก Google Sheets ได้ กรุณาลองใหม่</td></tr>';
+    status.innerHTML = '<span class="dot" style="background:#e34948"></span>โหลดข้อมูลไม่สำเร็จ';
+  }
+}
+loadData();
+</script>
+</body>
+</html>
